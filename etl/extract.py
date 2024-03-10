@@ -91,7 +91,6 @@ class PostgresExtractor:
             try:
                 cursor.execute(REQUEST_ALL_DATA_WHERE.format(ids=str(ids)))
                 queryset = cursor.fetchall()
-                print(queryset)
             except psycopg2.OperationalError as error:
                 raise error
             self.redis.save_sate(
