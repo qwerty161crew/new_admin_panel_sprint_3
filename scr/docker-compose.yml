@@ -2,18 +2,16 @@ version: '3.9'
 
 services:
   python_app:
-    build: .
+    build: ../etl
     volumes:
       - .:/app
     depends_on:
       - redis
       - elasticsearch
-
   redis:
     image: redis:latest
     ports:
       - "6379:6379"
-
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
     ports:
