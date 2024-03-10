@@ -6,28 +6,28 @@ from psycopg2.extras import DictCursor
 
 from redis_develop import Redis
 from query import REQUEST_ALL_DATA, REQUEST_ALL_DATA_WHERE
+from settings import Settings
+
+settings = Settings()
 
 
 class PostgresExtractor:
     def __init__(self) -> None:
         self.connection = self.create_connection()
         self.stop = False
-        self.redis = Redis(host="127.0.0.1", port=6379)
+        self.redis = Redis(host=settings.redis_host, port=settings.redis_port)
 
     @backoff.on_exception(backoff.expo, psycopg2.OperationalError)
     def create_connection(self):
-        try:
-            connection = psycopg2.connect(
-                database="movies_database",
-                user="app",
-                password="123qwe",
-                host="localhost",
-                port=5432,
-                cursor_factory=DictCursor,
-            )
-            return connection
-        except psycopg2.OperationalError as error:
-            raise error
+        connection = psycopg2.connect(
+            database=settings.pg_name,
+            user=settings.pg_user,
+            password=settings.pg_password,
+            host=settings.pg_host,
+            port=settings.pg_port,
+            cursor_factory=DictCursor,
+        )
+        return connection
 
     @backoff.on_exception(backoff.expo, psycopg2.OperationalError)
     def transfer_of_all_data(self):
@@ -75,7 +75,7 @@ class PostgresExtractor:
             five_minutes_ago = current_time - timedelta(minutes=925)
             cursor.execute(sql_request.format(five_minutes_ago=five_minutes_ago))
             queryset = cursor.fetchall()
-            if queryset != []:
+            if queryset:
                 self.redis.create_chahe(
                     queryset,
                     keyname_id="film_work_id",
@@ -89,9 +89,7 @@ class PostgresExtractor:
     def transfer_of_data(self, ids):
         with self.connection.cursor() as cursor:
             try:
-                cursor.execute(
-                    REQUEST_ALL_DATA_WHERE.format(ids=str(ids))
-                )
+                cursor.execute(REQUEST_ALL_DATA_WHERE.format(ids=str(ids)))
                 queryset = cursor.fetchall()
                 print(queryset)
             except psycopg2.OperationalError as error:
@@ -107,6 +105,3 @@ class PostgresExtractor:
                 queryset, keyname_id="fw_id", tablename="film_work", many=False
             )
             return queryset
-
-
-# PostgresExtractor().get_update()

@@ -1,12 +1,12 @@
-import datetime
-import backoff
 import json
+from typing import List
+
+import backoff
 import redis
 from redis.commands.search.field import TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 from psycopg2.extras import DictRow
-from typing import List
 
 
 class Redis:
@@ -16,15 +16,16 @@ class Redis:
         self.connect = connect
         if self.connect is None:
             self.connect = self.create_connection()
-        # self.create_schema()
+        self.create_schema()
 
     def create_connection(self) -> redis.Redis:
         connect = redis.Redis(host=self.host, port=self.port, decode_responses=True)
         return connect
 
     def create_schema(self):
-        redis_index = self.connect.ft("idx:data")
+        self.redis_index = self.connect.ft("idx:data")
         elastic_index = self.connect.ft("idx:film_work_id")
+
         schema = (
             TextField("$.id", as_name="id"),
             TextField("$.operation", as_name="operation"),
@@ -32,16 +33,19 @@ class Redis:
             TextField("$.table", as_name="table"),
         )
         schema_elastic_search = (TextField("$.id_elastic", as_name="id_elastic"),)
-        redis_index.create_index(
-            schema,
-            definition=IndexDefinition(prefix=["data:"], index_type=IndexType.JSON),
-        )
-        elastic_index.create_index(
-            schema_elastic_search,
-            definition=IndexDefinition(
-                prefix=["film_work_id:"], index_type=IndexType.JSON
-            ),
-        )
+        if not self.redis_index:
+            self.redis_index.create_index(
+                schema,
+                definition=IndexDefinition(prefix=["data:"], index_type=IndexType.JSON),
+            )
+
+        if not elastic_index:
+            elastic_index.create_index(
+                schema_elastic_search,
+                definition=IndexDefinition(
+                    prefix=["film_work_id:"], index_type=IndexType.JSON
+                ),
+            )
 
     @backoff.on_exception(backoff.expo, redis.exceptions.DataError, max_time=2)
     def save_sate(self, film_work, func_name, state, table, many):
@@ -57,6 +61,7 @@ class Redis:
                     try:
                         self.connect.hset(f'data:{data["id"]}', mapping=query)
                     except redis.exceptions.DataError as error:
+                        print(error)
                         raise error
         else:
             query = {
@@ -109,5 +114,12 @@ class Redis:
         return self.connect.get(f"{name}:{id}")
 
     def save_id_elascit_search(self, movie_id, elastic_id):
-        print(movie_id, elastic_id)
         self.connect.set(f"film_work_id:{movie_id}", elastic_id)
+
+    def get_raw_data(self):
+        res = self.redis_index.search(Query("@state:collected"))
+        print(res)
+
+
+r = Redis(port=6379, host="127.0.0.1")
+r.get_raw_data()

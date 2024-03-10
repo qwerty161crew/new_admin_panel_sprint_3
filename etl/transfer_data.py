@@ -5,6 +5,9 @@ import time
 from extract import PostgresExtractor
 from dataloader import ElasticSearchLoader
 from redis_develop import Redis
+from settings import Settings
+
+settings = Settings()
 
 
 class DataTransform:
@@ -17,7 +20,7 @@ class DataTransform:
         self.postgres_class = postgres_class
         self.elasticsearch_class = elasticsearch_class
         self.redis = redis
-
+    
     def transform_data_all(self):
         mapping = []
         for filmworks in self.postgres_class.transfer_of_all_data():
@@ -88,10 +91,10 @@ class DataTransform:
                 for film_work_data in queruset:
                     if film_work_data["film_work_id"] not in edit_film_work_id:
                         edit_film_work_id.append(film_work_data["film_work_id"])
+
         if edit_film_work_id != []:
-            edit_film_work_id = tuple(id for id in edit_film_work_id)
-            self._сonvert_changed_data(edit_film_work_id)
-        print(edit_film_work_id)
+            self.edit_film_work_id = tuple(id for id in edit_film_work_id)
+            self._сonvert_changed_data(self.edit_film_work_id)
 
     def _сonvert_changed_data(self, film_work_ids):
         mapping = []
@@ -158,13 +161,16 @@ class DataTransform:
 
 if __name__ == "__main__":
     transform = DataTransform(
-        redis=Redis(port=6379, host="127.0.0.1"),
+        redis=Redis(port=settings.redis_port, host=settings.redis_host),
         postgres_class=PostgresExtractor(),
         elasticsearch_class=ElasticSearchLoader(
-            port=9200, host="127.0.0.1", redis=Redis(port=6379, host="127.0.0.1")
+            port=settings.els_port,
+            host=settings.els_host,
+            redis=Redis(port=settings.redis_port, host=settings.redis_host),
         ),
     )
     transform.transform_data_all()
     while True:
         transform.get_update()
+        transform.redis.get_raw_data()
         time.sleep(310)

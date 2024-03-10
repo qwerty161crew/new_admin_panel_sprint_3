@@ -8,13 +8,19 @@ services:
     depends_on:
       - redis
       - elasticsearch
+      - postgres
   redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
+    image: redis:7.2.4
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
-    ports:
-      - "9200:9200"
     environment:
       - discovery.type=single-node
+  db:
+    image: postgres:15.0
+    env_file:
+      - .env
+###Вопросы к ревьюеру:
+  # 1 - Мой код самый плохочитаемый на потоке?
+  # 2 - Правильно ли я применяю принципы ООП? 
+
+  
