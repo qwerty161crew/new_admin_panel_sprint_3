@@ -116,6 +116,3 @@ class Redis:
     def save_id_elascit_search(self, movie_id, elastic_id):
         self.connect.set(f"film_work_id:{movie_id}", elastic_id)
 
-
-r = Redis(port=6379, host="127.0.0.1")
-r.get_raw_data()
